@@ -146,19 +146,20 @@ def build_forecast_context(scenario: Dict[str, Any]) -> Tuple[List[Dict[str, Any
         future_module_temp = module_temp * (0.90 + 0.25 * solar_factor)
         future_ambient_temp = ambient_temp * (0.95 + 0.10 * solar_factor)
 
-        features = pd.DataFrame(
-            [
-                [
-                    source_key,
-                    future_ambient_temp,
-                    future_module_temp,
-                    future_irradiation,
-                    hour,
-                    month,
-                ]
-            ],
-            columns=FEATURES,
-        )
+        # Create feature dict first, then DataFrame
+        feature_dict = {
+            "AMBIENT_TEMPERATURE": [future_ambient_temp],
+            "MODULE_TEMPERATURE": [future_module_temp], 
+            "IRRADIATION": [future_irradiation],
+            "hour": [hour],
+            "month": [month]
+        }
+        
+        # Add SOURCE_KEY if it exists in FEATURES
+        if "SOURCE_KEY" in FEATURES:
+            feature_dict["SOURCE_KEY"] = [source_key]
+        
+        features = pd.DataFrame(feature_dict)
 
         predicted_w = max(0.0, float(model.predict(features)[0]))
         if hour < 6 or hour > 18:
