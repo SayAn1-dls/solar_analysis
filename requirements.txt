@@ -1,4 +1,4 @@
-# v3
+streamlit==1.50.0
 altair<5
 pandas
 numpy
