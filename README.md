@@ -76,29 +76,33 @@ The agent generates:
 
 ### Milestone 1: ML Forecasting Pipeline
 
-```
-Solar CSV Data
-  → src/data/load_data.py
-  → src/preprocessing/preprocessing.py
-  → Feature Engineering: hour, month
-  → SOURCE_KEY Encoding
-  → Chronological Train/Test Split
-  → src/modeling/train.py (RandomForestRegressor)
-  → src/evaluation/metrics.py (MAE, RMSE, R², MAPE, CV)
-  → app/streamlit_app.py
+```mermaid
+graph TD
+    A["Solar CSV Data"] --> B["src/data/load_data.py"]
+    B --> C["src/preprocessing/preprocessing.py"]
+    C --> D["Feature Engineering: hour, month"]
+    C --> E["SOURCE_KEY Encoding"]
+    D --> F["Chronological Train/Test Split"]
+    E --> F
+    F --> G["src/modeling/train.py"]
+    G --> H["RandomForestRegressor"]
+    H --> I["src/evaluation/metrics.py"]
+    H --> J["app/streamlit_app.py"]
+    I --> K["MAE, RMSE, R², MAPE, CV"]
 ```
 
 ### Milestone 2: Agentic RAG Optimization Workflow
 
-```
-Operator Goal + Grid Scenario
-  → app/agentic_rag_app.py
-  → src/agentic_rag/workflow.py
-      → Prepare Forecast Context
-      → Risk Analysis
-      → Guideline Retrieval  ← knowledge_base/grid_guidelines/*.md
-      → Action Planning
-  → Structured Optimization Report
+```mermaid
+graph TD
+    A["Operator Goal + Grid Scenario"] --> B["app/agentic_rag_app.py"]
+    B --> C["src/agentic_rag/workflow.py"]
+    C --> D["Prepare Forecast Context"]
+    D --> E["Risk Analysis"]
+    E --> F["Guideline Retrieval"]
+    F --> G["Action Planning"]
+    G --> H["Structured Optimization Report"]
+    I["knowledge_base/grid_guidelines/*.md"] --> F
 ```
 
 ### Architecture Breakdown
