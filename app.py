@@ -289,9 +289,27 @@ with tab1:
 
     if st.button("Predict Solar Power", type="primary", key="pred_btn"):
 
-        data = pd.DataFrame([[SOURCE_KEY, AMBIENT_TEMPERATURE,
-                               MODULE_TEMPERATURE, IRRADIATION,
-                               hour, month]], columns=FEATURES)
+        # Create data with exact FEATURES structure
+        data_dict = {
+            "AMBIENT_TEMPERATURE": [AMBIENT_TEMPERATURE],
+            "MODULE_TEMPERATURE": [MODULE_TEMPERATURE], 
+            "IRRADIATION": [IRRADIATION],
+            "hour": [hour],
+            "month": [month]
+        }
+        
+        # Add SOURCE_KEY only if it's in FEATURES
+        if "SOURCE_KEY" in FEATURES:
+            data_dict["SOURCE_KEY"] = [SOURCE_KEY]
+        
+        data = pd.DataFrame(data_dict)
+        
+        # Ensure columns match FEATURES exactly
+        for feature in FEATURES:
+            if feature not in data.columns:
+                data[feature] = 0  # Default value
+        
+        data = data[FEATURES]
 
         pred = max(0, load_model().predict(data)[0])
 
