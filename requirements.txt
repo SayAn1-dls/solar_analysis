@@ -5,7 +5,8 @@ numpy
 scikit-learn
 matplotlib
 joblib
-langgraph>=0.2.50
-faiss-cpu; python_version < "3.14"
 groq
+langgraph
+langchain-core
+faiss-cpu
 python-dotenv
