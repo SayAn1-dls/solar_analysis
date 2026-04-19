@@ -209,10 +209,12 @@ training_log = load_training_log()
 # ══════════════════════════════════════
 # TIME-BASED TRAIN-TEST SPLIT
 # ══════════════════════════════════════
-df_sorted = df_train.sort_values("DATE_TIME")
+df_sorted = df_full.sort_values("DATE_TIME")
 split_idx = int(len(df_sorted) * 0.8)
 
-X_all = df_sorted[FEATURES]
+# Encode after sorting to preserve DATE_TIME
+df_sorted_encoded = encode_features(df_sorted.copy())
+X_all = df_sorted_encoded[FEATURES]
 y_all = df_sorted[TARGET]
 
 X_train_ts = X_all.iloc[:split_idx]
