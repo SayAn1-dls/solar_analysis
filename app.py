@@ -20,9 +20,6 @@ from dotenv import load_dotenv
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 import streamlit as st
 import joblib
 import pandas as pd
@@ -31,10 +28,15 @@ import matplotlib.ticker as mticker
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from src.preprocessing.preprocessing import encode_features, FEATURES, TARGET
-from src.evaluation.metrics import compute_mape
-from src.utils.helpers import style_plot, concept_note, C_RF, C_ACTUAL, C_ACCENT, C_GOLD
-from src.agentic_rag.workflow import run_agentic_grid_optimizer
+# Try to import local modules with error handling for deployment
+try:
+    from src.preprocessing.preprocessing import encode_features, FEATURES, TARGET
+    from src.evaluation.metrics import compute_mape
+    from src.utils.helpers import style_plot, concept_note, C_RF, C_ACTUAL, C_ACCENT, C_GOLD
+    from src.agentic_rag.workflow import run_agentic_grid_optimizer
+except ImportError as e:
+    st.error(f"Import error: {e}")
+    st.stop()
 
 # ══════════════════════════════════════
 # PAGE CONFIG & STYLING
@@ -168,12 +170,26 @@ st.markdown(
 # ══════════════════════════════════════
 @st.cache_resource
 def load_model():
-    return joblib.load("models/solar_model.pkl")
+    try:
+        return joblib.load("models/solar_model.pkl")
+    except FileNotFoundError:
+        st.error("Model file not found. Please train the model first or ensure models/solar_model.pkl exists.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        st.stop()
 
 
 @st.cache_data
 def load_dataset():
-    return pd.read_csv("data/processed/solar_final.csv")
+    try:
+        return pd.read_csv("data/processed/solar_final.csv")
+    except FileNotFoundError:
+        st.error("Dataset file not found. Please ensure data/processed/solar_final.csv exists.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error loading dataset: {e}")
+        st.stop()
 
 
 @st.cache_data
