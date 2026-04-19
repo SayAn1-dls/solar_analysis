@@ -171,9 +171,23 @@ st.markdown(
 @st.cache_resource
 def load_model():
     try:
-        return joblib.load("models/solar_model.pkl")
-    except FileNotFoundError:
-        st.error("Model file not found. Please train the model first or ensure models/solar_model.pkl exists.")
+        # Try multiple possible paths for model file
+        import os
+        model_paths = [
+            "models/solar_model.pkl",
+            os.path.join(os.getcwd(), "models/solar_model.pkl"),
+            "/mount/src/solar_analysis/models/solar_model.pkl"
+        ]
+        
+        for path in model_paths:
+            if os.path.exists(path):
+                return joblib.load(path)
+        
+        # If no model found, show error with paths checked
+        st.error("Model file not found. Please ensure models/solar_model.pkl exists.")
+        st.write("Paths checked:")
+        for path in model_paths:
+            st.write(f"- {path}")
         st.stop()
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -183,9 +197,23 @@ def load_model():
 @st.cache_data
 def load_dataset():
     try:
-        return pd.read_csv("data/processed/solar_final.csv")
-    except FileNotFoundError:
+        # Try multiple possible paths for dataset file
+        import os
+        data_paths = [
+            "data/processed/solar_final.csv",
+            os.path.join(os.getcwd(), "data/processed/solar_final.csv"),
+            "/mount/src/solar_analysis/data/processed/solar_final.csv"
+        ]
+        
+        for path in data_paths:
+            if os.path.exists(path):
+                return pd.read_csv(path)
+        
+        # If no dataset found, show error with paths checked
         st.error("Dataset file not found. Please ensure data/processed/solar_final.csv exists.")
+        st.write("Paths checked:")
+        for path in data_paths:
+            st.write(f"- {path}")
         st.stop()
     except Exception as e:
         st.error(f"Error loading dataset: {e}")
