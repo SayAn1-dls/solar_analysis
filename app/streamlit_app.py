@@ -185,7 +185,6 @@ def load_training_log():
     return None
 
 
-model = load_model()
 df_full = load_dataset()
 df_train = encode_features(df_full.copy())
 training_log = load_training_log()
@@ -248,7 +247,7 @@ with tab1:
                                MODULE_TEMPERATURE, IRRADIATION,
                                hour, month]], columns=FEATURES)
 
-        pred = max(0, model.predict(data)[0])
+        pred = max(0, load_model().predict(data)[0])
 
         st.metric("Predicted DC Power (RandomForest)", f"{pred:,.0f} W")
 
@@ -272,7 +271,7 @@ with tab1:
     if uploaded_file is not None:
         df_up = pd.read_csv(uploaded_file)
         st.write("Uploaded data preview:")
-        st.dataframe(df_up.head(), width="stretch")
+        st.dataframe(df_up.head(), use_container_width=True)
 
         if st.button("Run Batch Forecast", key="batch_btn"):
             missing = [f for f in FEATURES if f not in df_up.columns]
@@ -282,11 +281,11 @@ with tab1:
                 df_pred = df_up.copy()
                 df_pred = encode_features(df_pred)
 
-                preds_batch = np.clip(model.predict(df_pred[FEATURES]), 0, None)
+                preds_batch = np.clip(load_model().predict(df_pred[FEATURES]), 0, None)
                 df_up["Prediction"] = preds_batch
 
                 st.success("Forecast completed successfully.")
-                st.dataframe(df_up, width="stretch")
+                st.dataframe(df_up, use_container_width=True)
 
                 csv = df_up.to_csv(index=False).encode("utf-8")
                 st.download_button("Download Predictions", csv,
@@ -405,154 +404,158 @@ with tab3:
         "Using multiple metrics provides a comprehensive evaluation."
     )
 
-    preds = np.clip(model.predict(X_test_ts), 0, None)
+    if st.button("Run Model Evaluation", key="eval_btn"):
+        st.session_state["show_eval"] = True
 
-    mae = mean_absolute_error(y_test_ts, preds)
-    rmse = np.sqrt(mean_squared_error(y_test_ts, preds))
-    r2 = r2_score(y_test_ts, preds)
-    mape = compute_mape(y_test_ts, preds)
+    if st.session_state.get("show_eval", False):
+        preds = np.clip(load_model().predict(X_test_ts), 0, None)
 
-    st.subheader("RandomForest — Holdout Evaluation")
+        mae = mean_absolute_error(y_test_ts, preds)
+        rmse = np.sqrt(mean_squared_error(y_test_ts, preds))
+        r2 = r2_score(y_test_ts, preds)
+        mape = compute_mape(y_test_ts, preds)
 
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    col_m1.metric("MAE", f"{mae:,.2f} W")
-    col_m2.metric("RMSE", f"{rmse:,.2f} W")
-    col_m3.metric("R² Score", f"{r2:.4f}")
-    col_m4.metric("MAPE", f"{mape:.1f}%")
+        st.subheader("RandomForest — Holdout Evaluation")
 
-    fig_met, axes = plt.subplots(1, 3, figsize=(12, 3.5))
-    fig_met.patch.set_facecolor("#0D1117")
-    labels = ["MAE", "RMSE", "R²"]
-    values = [mae, rmse, r2]
-    colors = [C_RF, C_ACCENT, C_ACTUAL]
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("MAE", f"{mae:,.2f} W")
+        col_m2.metric("RMSE", f"{rmse:,.2f} W")
+        col_m3.metric("R² Score", f"{r2:.4f}")
+        col_m4.metric("MAPE", f"{mape:.1f}%")
 
-    for i, ax in enumerate(axes):
-        ax.bar([labels[i]], [values[i]], color=colors[i], alpha=0.9,
-               edgecolor="white", width=0.4)
-        fmt = f'{values[i]:.4f}' if i == 2 else f'{values[i]:,.1f}'
-        ax.text(0, values[i], fmt, ha='center', va='bottom', fontsize=10,
-                fontweight="bold", color="#E5E7EB")
-        ax.set_title(labels[i], fontsize=11, fontweight="bold", color="#E5E7EB")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["bottom"].set_color("#374151")
-        ax.spines["left"].set_color("#374151")
-        ax.tick_params(colors="#9CA3AF")
-        ax.set_facecolor("#111827")
-    plt.tight_layout()
-    st.pyplot(fig_met)
+        fig_met, axes = plt.subplots(1, 3, figsize=(12, 3.5))
+        fig_met.patch.set_facecolor("#0D1117")
+        labels = ["MAE", "RMSE", "R²"]
+        values = [mae, rmse, r2]
+        colors = [C_RF, C_ACCENT, C_ACTUAL]
 
-    if training_log and "cv_metrics_k5" in training_log:
+        for i, ax in enumerate(axes):
+            ax.bar([labels[i]], [values[i]], color=colors[i], alpha=0.9,
+                   edgecolor="white", width=0.4)
+            fmt = f'{values[i]:.4f}' if i == 2 else f'{values[i]:,.1f}'
+            ax.text(0, values[i], fmt, ha='center', va='bottom', fontsize=10,
+                    fontweight="bold", color="#E5E7EB")
+            ax.set_title(labels[i], fontsize=11, fontweight="bold", color="#E5E7EB")
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.spines["bottom"].set_color("#374151")
+            ax.spines["left"].set_color("#374151")
+            ax.tick_params(colors="#9CA3AF")
+            ax.set_facecolor("#111827")
+        plt.tight_layout()
+        st.pyplot(fig_met)
+
+        if training_log and "cv_metrics_k5" in training_log:
+            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+            st.subheader("Cross-Validation (TimeSeriesSplit, k=5)")
+
+            concept_note(
+                "<strong>Concept — Cross-Validation:</strong> "
+                "Instead of a single split, k-fold cross-validation trains and evaluates the model "
+                "k times on different partitions. <strong>TimeSeriesSplit</strong> respects temporal "
+                "order, preventing future data from leaking into training."
+            )
+
+            cv = training_log["cv_metrics_k5"]
+            col_cv1, col_cv2, col_cv3, col_cv4 = st.columns(4)
+            col_cv1.metric("CV MAE", f"{cv['MAE_mean']:,.1f} ± {cv['MAE_std']:,.1f}")
+            col_cv2.metric("CV RMSE", f"{cv['RMSE_mean']:,.1f} ± {cv['RMSE_std']:,.1f}")
+            col_cv3.metric("CV R²", f"{cv['R2_mean']:.4f} ± {cv['R2_std']:.4f}")
+            col_cv4.metric("CV MAPE", f"{cv['MAPE_mean']:.1f} ± {cv['MAPE_std']:.1f}%")
+
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-        st.subheader("Cross-Validation (TimeSeriesSplit, k=5)")
+        st.subheader("Actual vs Predicted")
+
+        n_show = 300
+
+        fig_ap, ax_ap = plt.subplots(figsize=(14, 5))
+        fig_ap.patch.set_facecolor("#0D1117")
+        ax_ap.plot(range(n_show), y_test_ts.values[:n_show], color=C_ACTUAL,
+                   label="Actual", linewidth=1.5, alpha=0.8)
+        ax_ap.plot(range(n_show), preds[:n_show], color=C_RF,
+                   label="Predicted (RF)", linewidth=1.5, alpha=0.8)
+        style_plot(ax_ap, "Actual vs Predicted Solar Power",
+                   xlabel="Test Sample Index", ylabel="DC Power (W)")
+        ax_ap.legend(loc="upper right", fontsize=9, facecolor="#111827",
+                     edgecolor="#374151", labelcolor="#E5E7EB")
+        plt.tight_layout()
+        st.pyplot(fig_ap)
 
         concept_note(
-            "<strong>Concept — Cross-Validation:</strong> "
-            "Instead of a single split, k-fold cross-validation trains and evaluates the model "
-            "k times on different partitions. <strong>TimeSeriesSplit</strong> respects temporal "
-            "order, preventing future data from leaking into training."
+            "<strong>Concept — Regression Evaluation:</strong> "
+            "The closer the predicted line follows the actual line, the better the model. "
+            "Large gaps indicate regions where the model struggles — typically low-light or "
+            "transitional hours."
         )
 
-        cv = training_log["cv_metrics_k5"]
-        col_cv1, col_cv2, col_cv3, col_cv4 = st.columns(4)
-        col_cv1.metric("CV MAE", f"{cv['MAE_mean']:,.1f} ± {cv['MAE_std']:,.1f}")
-        col_cv2.metric("CV RMSE", f"{cv['RMSE_mean']:,.1f} ± {cv['RMSE_std']:,.1f}")
-        col_cv3.metric("CV R²", f"{cv['R2_mean']:.4f} ± {cv['R2_std']:.4f}")
-        col_cv4.metric("CV MAPE", f"{cv['MAPE_mean']:.1f} ± {cv['MAPE_std']:.1f}%")
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("Scatter Plot — Actual vs Predicted")
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.subheader("Actual vs Predicted")
+        fig_scat, ax_s = plt.subplots(figsize=(7, 5))
+        fig_scat.patch.set_facecolor("#0D1117")
+        ax_s.scatter(y_test_ts.values, preds, alpha=0.15, s=8, color=C_RF, edgecolors="none")
+        max_val = max(y_test_ts.max(), preds.max())
+        ax_s.plot([0, max_val], [0, max_val], color=C_ACTUAL, linestyle="--",
+                  linewidth=1.5, label="Perfect Prediction")
+        style_plot(ax_s, f"RandomForest (R²={r2:.4f})", xlabel="Actual (W)", ylabel="Predicted (W)")
+        ax_s.legend(fontsize=9, facecolor="#111827", edgecolor="#374151", labelcolor="#E5E7EB")
+        plt.tight_layout()
+        st.pyplot(fig_scat)
 
-    n_show = 300
+        st.caption("Points on the diagonal = perfect predictions. "
+                   "Tighter cluster = better model performance.")
 
-    fig_ap, ax_ap = plt.subplots(figsize=(14, 5))
-    fig_ap.patch.set_facecolor("#0D1117")
-    ax_ap.plot(range(n_show), y_test_ts.values[:n_show], color=C_ACTUAL,
-               label="Actual", linewidth=1.5, alpha=0.8)
-    ax_ap.plot(range(n_show), preds[:n_show], color=C_RF,
-               label="Predicted (RF)", linewidth=1.5, alpha=0.8)
-    style_plot(ax_ap, "Actual vs Predicted Solar Power",
-               xlabel="Test Sample Index", ylabel="DC Power (W)")
-    ax_ap.legend(loc="upper right", fontsize=9, facecolor="#111827",
-                 edgecolor="#374151", labelcolor="#E5E7EB")
-    plt.tight_layout()
-    st.pyplot(fig_ap)
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("Residual Analysis")
 
-    concept_note(
-        "<strong>Concept — Regression Evaluation:</strong> "
-        "The closer the predicted line follows the actual line, the better the model. "
-        "Large gaps indicate regions where the model struggles — typically low-light or "
-        "transitional hours."
-    )
+        errors = y_test_ts.values - preds
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.subheader("Scatter Plot — Actual vs Predicted")
+        fig_res, (ax_r1, ax_r2) = plt.subplots(1, 2, figsize=(14, 4.5))
+        fig_res.patch.set_facecolor("#0D1117")
 
-    fig_scat, ax_s = plt.subplots(figsize=(7, 5))
-    fig_scat.patch.set_facecolor("#0D1117")
-    ax_s.scatter(y_test_ts.values, preds, alpha=0.15, s=8, color=C_RF, edgecolors="none")
-    max_val = max(y_test_ts.max(), preds.max())
-    ax_s.plot([0, max_val], [0, max_val], color=C_ACTUAL, linestyle="--",
-              linewidth=1.5, label="Perfect Prediction")
-    style_plot(ax_s, f"RandomForest (R²={r2:.4f})", xlabel="Actual (W)", ylabel="Predicted (W)")
-    ax_s.legend(fontsize=9, facecolor="#111827", edgecolor="#374151", labelcolor="#E5E7EB")
-    plt.tight_layout()
-    st.pyplot(fig_scat)
+        ax_r1.scatter(preds, errors, alpha=0.12, s=8, color=C_RF, edgecolors="none")
+        ax_r1.axhline(0, color=C_ACTUAL, linestyle="--", linewidth=1.5, alpha=0.7)
+        style_plot(ax_r1, "Residuals vs Predicted", xlabel="Predicted (W)", ylabel="Residual (W)")
 
-    st.caption("Points on the diagonal = perfect predictions. "
-               "Tighter cluster = better model performance.")
+        ax_r2.hist(errors, bins=60, color=C_RF, alpha=0.75, edgecolor="white", linewidth=0.5)
+        ax_r2.axvline(0, color=C_ACTUAL, linestyle="--", linewidth=1.5, alpha=0.7)
+        ax_r2.axvline(np.mean(errors), color="#E5E7EB", linestyle=":", linewidth=1, alpha=0.5,
+                      label=f"Mean={np.mean(errors):,.0f}")
+        style_plot(ax_r2, "Error Distribution", xlabel="Error (W)", ylabel="Frequency")
+        ax_r2.legend(fontsize=9, facecolor="#111827", edgecolor="#374151", labelcolor="#E5E7EB")
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.subheader("Residual Analysis")
+        plt.tight_layout()
+        st.pyplot(fig_res)
 
-    errors = y_test_ts.values - preds
+        concept_note(
+            "<strong>Concept — Residual Analysis:</strong> "
+            "A well-fitted model shows residuals scattered randomly around zero (low bias). "
+            "A narrow error distribution means low variance. Patterns in residuals indicate "
+            "systematic errors the model has not captured."
+        )
 
-    fig_res, (ax_r1, ax_r2) = plt.subplots(1, 2, figsize=(14, 4.5))
-    fig_res.patch.set_facecolor("#0D1117")
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("Feature Importance — What Drives Predictions?")
 
-    ax_r1.scatter(preds, errors, alpha=0.12, s=8, color=C_RF, edgecolors="none")
-    ax_r1.axhline(0, color=C_ACTUAL, linestyle="--", linewidth=1.5, alpha=0.7)
-    style_plot(ax_r1, "Residuals vs Predicted", xlabel="Predicted (W)", ylabel="Residual (W)")
+        concept_note(
+            "<strong>Concept — Decision Tree Feature Importance:</strong> "
+            "Tree-based models rank features by how much they reduce <strong>Gini impurity</strong> "
+            "across all splits. Features causing the largest reduction are most important. "
+            "This provides <strong>model explainability</strong>."
+        )
 
-    ax_r2.hist(errors, bins=60, color=C_RF, alpha=0.75, edgecolor="white", linewidth=0.5)
-    ax_r2.axvline(0, color=C_ACTUAL, linestyle="--", linewidth=1.5, alpha=0.7)
-    ax_r2.axvline(np.mean(errors), color="#E5E7EB", linestyle=":", linewidth=1, alpha=0.5,
-                  label=f"Mean={np.mean(errors):,.0f}")
-    style_plot(ax_r2, "Error Distribution", xlabel="Error (W)", ylabel="Frequency")
-    ax_r2.legend(fontsize=9, facecolor="#111827", edgecolor="#374151", labelcolor="#E5E7EB")
+        imp = load_model().feature_importances_
 
-    plt.tight_layout()
-    st.pyplot(fig_res)
+        fig_imp, ax_imp = plt.subplots(figsize=(10, 4.5))
+        fig_imp.patch.set_facecolor("#0D1117")
+        bars = ax_imp.barh(FEATURES, imp, color=C_RF, alpha=0.9, edgecolor="white")
+        style_plot(ax_imp, "Feature Importance — Gini-Based Ranking", xlabel="Importance Score")
+        ax_imp.invert_yaxis()
+        plt.tight_layout()
+        st.pyplot(fig_imp)
 
-    concept_note(
-        "<strong>Concept — Residual Analysis:</strong> "
-        "A well-fitted model shows residuals scattered randomly around zero (low bias). "
-        "A narrow error distribution means low variance. Patterns in residuals indicate "
-        "systematic errors the model has not captured."
-    )
-
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.subheader("Feature Importance — What Drives Predictions?")
-
-    concept_note(
-        "<strong>Concept — Decision Tree Feature Importance:</strong> "
-        "Tree-based models rank features by how much they reduce <strong>Gini impurity</strong> "
-        "across all splits. Features causing the largest reduction are most important. "
-        "This provides <strong>model explainability</strong>."
-    )
-
-    imp = model.feature_importances_
-
-    fig_imp, ax_imp = plt.subplots(figsize=(10, 4.5))
-    fig_imp.patch.set_facecolor("#0D1117")
-    bars = ax_imp.barh(FEATURES, imp, color=C_RF, alpha=0.9, edgecolor="white")
-    style_plot(ax_imp, "Feature Importance — Gini-Based Ranking", xlabel="Importance Score")
-    ax_imp.invert_yaxis()
-    plt.tight_layout()
-    st.pyplot(fig_imp)
-
-    st.info("IRRADIATION is the dominant feature — as expected from solar physics. "
-            "Power output is proportional to irradiance received by the panels.")
+        st.info("IRRADIATION is the dominant feature — as expected from solar physics. "
+                "Power output is proportional to irradiance received by the panels.")
 
 
 # ══════════════════════════════════════════════════════
@@ -611,7 +614,7 @@ with tab4:
                 future_irradiation, future_hour, fc_month,
             ]], columns=FEATURES)
 
-            p = max(0, model.predict(future_input)[0])
+            p = max(0, load_model().predict(future_input)[0])
 
             if future_hour < 6 or future_hour > 18:
                 p = 0
@@ -695,41 +698,45 @@ with tab5:
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     st.subheader("Export Test Set Results")
 
-    preds_export = np.clip(model.predict(X_test_ts), 0, None)
+    if st.button("Generate Test Set Export", key="export_btn"):
+        st.session_state["show_export"] = True
 
-    export_df = X_test_ts.copy()
-    export_df["Actual_DC_POWER"] = y_test_ts.values
-    export_df["Predicted"] = preds_export
-    export_df["Error"] = y_test_ts.values - preds_export
-    export_df["Abs_Error"] = np.abs(y_test_ts.values - preds_export)
+    if st.session_state.get("show_export", False):
+        preds_export = np.clip(load_model().predict(X_test_ts), 0, None)
 
-    st.write(f"Test set size: **{len(export_df):,}** samples. Features are now included so this file can be reused in the Batch Prediction tool!")
-    st.dataframe(export_df.head(20), width="stretch")
+        export_df = X_test_ts.copy()
+        export_df["Actual_DC_POWER"] = y_test_ts.values
+        export_df["Predicted"] = preds_export
+        export_df["Error"] = y_test_ts.values - preds_export
+        export_df["Abs_Error"] = np.abs(y_test_ts.values - preds_export)
 
-    csv_export = export_df.to_csv(index=False).encode("utf-8")
-    st.download_button("Download Test Results (CSV)", csv_export,
-                       "test_features_and_predictions.csv", "text/csv")
+        st.write(f"Test set size: **{len(export_df):,}** samples. Features are now included so this file can be reused in the Batch Prediction tool!")
+        st.dataframe(export_df.head(20), use_container_width=True)
 
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.subheader("Summary Statistics")
+        csv_export = export_df.to_csv(index=False).encode("utf-8")
+        st.download_button("Download Test Results (CSV)", csv_export,
+                           "test_features_and_predictions.csv", "text/csv")
 
-    summary = pd.DataFrame({
-        "Statistic": ["Mean", "Median", "Std Dev", "Min", "Max", "25th %ile", "75th %ile"],
-        "Actual": [
-            f"{y_test_ts.mean():,.1f}", f"{y_test_ts.median():,.1f}",
-            f"{y_test_ts.std():,.1f}", f"{y_test_ts.min():,.1f}",
-            f"{y_test_ts.max():,.1f}", f"{y_test_ts.quantile(0.25):,.1f}",
-            f"{y_test_ts.quantile(0.75):,.1f}",
-        ],
-        "Predicted": [
-            f"{preds_export.mean():,.1f}", f"{np.median(preds_export):,.1f}",
-            f"{preds_export.std():,.1f}", f"{preds_export.min():,.1f}",
-            f"{preds_export.max():,.1f}", f"{np.percentile(preds_export, 25):,.1f}",
-            f"{np.percentile(preds_export, 75):,.1f}",
-        ],
-    })
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("Summary Statistics")
 
-    st.dataframe(summary.set_index("Statistic"), width="stretch")
+        summary = pd.DataFrame({
+            "Statistic": ["Mean", "Median", "Std Dev", "Min", "Max", "25th %ile", "75th %ile"],
+            "Actual": [
+                f"{y_test_ts.mean():,.1f}", f"{y_test_ts.median():,.1f}",
+                f"{y_test_ts.std():,.1f}", f"{y_test_ts.min():,.1f}",
+                f"{y_test_ts.max():,.1f}", f"{y_test_ts.quantile(0.25):,.1f}",
+                f"{y_test_ts.quantile(0.75):,.1f}",
+            ],
+            "Predicted": [
+                f"{preds_export.mean():,.1f}", f"{np.median(preds_export):,.1f}",
+                f"{preds_export.std():,.1f}", f"{preds_export.min():,.1f}",
+                f"{preds_export.max():,.1f}", f"{np.percentile(preds_export, 25):,.1f}",
+                f"{np.percentile(preds_export, 75):,.1f}",
+            ],
+        })
+
+        st.dataframe(summary.set_index("Statistic"), use_container_width=True)
 
 
 # ══════════════════════════════════════════════════════
@@ -844,7 +851,15 @@ with tab6:
                     from groq import Groq
                     try:
                         with st.spinner("Thinking..."):
-                            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+                            
+                            groq_key = os.getenv("GROQ_API_KEY")
+                            try:
+                                if not groq_key and hasattr(st, "secrets"):
+                                    groq_key = st.secrets.get("GROQ_API_KEY")
+                            except:
+                                pass
+                            client = Groq(api_key=groq_key)
+
                             prompt = f"Context:\n{state['optimization_report']}\n\nUser question: {user_q}\nRespond clearly and concisely with formatting."
                             response = client.chat.completions.create(
                                 model="llama-3.1-8b-instant",
@@ -883,7 +898,7 @@ with tab6:
                         "historical_variability_ratio",
                     ]
                 ],
-                width="stretch",
+                use_container_width=True,
             )
             st.line_chart(
                 forecast_df.set_index("hour")[["predicted_kw", "demand_kw"]],
@@ -898,14 +913,14 @@ with tab6:
 
         with rtab3:
             st.caption(f"Retriever backend: {state.get('retriever_backend', 'tfidf-cosine')}")
-            st.dataframe(references_df, width="stretch")
+            st.dataframe(references_df, use_container_width=True)
             for item in state["retrieved_guidelines"]:
                 with st.expander(f"{item['title']} ({item['id']})"):
                     st.write(item["content"])
                     st.caption(item["source"])
 
         with rtab4:
-            st.dataframe(pd.DataFrame(state["trace"]), width="stretch")
+            st.dataframe(pd.DataFrame(state["trace"]), use_container_width=True)
             st.json(
                 {
                     "scenario": state["scenario"],

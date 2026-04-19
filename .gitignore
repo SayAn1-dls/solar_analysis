@@ -1,8 +1,5 @@
-# Model binaries (too large for GitHub)
-models/*.pkl
-
-# Dataset files
-/data/
+# Presentation files
+Presentation file/
 
 # Python cache
 __pycache__/
@@ -26,4 +23,5 @@ Thumbs.db
 notebooks/*.ipynb
 
 # Reports (generated on training)
-reports/*.png
+reports/*.pngmodels/*.pkl
+models/*.pkl

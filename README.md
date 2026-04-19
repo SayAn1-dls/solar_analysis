@@ -1,3 +1,14 @@
+---
+title: Solar Power Forecasting & AI Grid Optimization
+emoji: ☀️
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: "1.32.0"
+app_file: app.py
+pinned: false
+---
+
 # Intelligent Solar Energy Forecasting and Agentic Grid Optimization
 
 This project is a heavily integrated, enterprise-scale, two-milestone renewable energy decision support system:
@@ -317,3 +328,4 @@ python3 -m pytest tests/test_agentic_rag_risk_engine.py tests/test_agentic_rag_r
 This project seamlessly links robust **Supervised ML** forecasting with cutting edge **Agentic Generative AI**.
 
 It actively pivots a standard analytics dashboard into a dedicated **Decision Support System**. By tracking state, injecting Groq LLM logic, managing grid variables, and implementing a native AI chatbot directly upon the reporting structure, operators achieve not just insight on *what* will happen, but proactive automated instructions on exactly *what to do* about it.
+ 

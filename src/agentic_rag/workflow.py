@@ -173,7 +173,16 @@ def _llm_reason(state: GridOptimizationState) -> GridOptimizationState:
     import os
 
     try:
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        
+        import streamlit as st
+        groq_key = os.getenv("GROQ_API_KEY")
+        try:
+            if not groq_key and hasattr(st, "secrets"):
+                groq_key = st.secrets.get("GROQ_API_KEY")
+        except:
+            pass
+        client = Groq(api_key=groq_key)
+
 
         summary = state["forecast_summary"]
         risk = state["risk_analysis"]
