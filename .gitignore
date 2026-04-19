@@ -25,3 +25,4 @@ notebooks/*.ipynb
 # Reports (generated on training)
 reports/*.pngmodels/*.pkl
 models/*.pkl
+models/*.pkl

@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the content of the local directory to the working directory
 COPY . .
 
+# Download the model from Hugging Face since it's large and excluded from GitHub
+RUN mkdir -p models && curl -sSL -O --output-dir models "https://huggingface.co/spaces/namansudo/Solarpower/resolve/main/models/solar_model.pkl"
+
 # Expose port 8501 for Streamlit
 EXPOSE 8501
 
