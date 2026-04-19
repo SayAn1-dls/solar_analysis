@@ -22,9 +22,14 @@ DEFAULT_HYPERPARAMETERS = {
 
 def _ensure_numeric_source_key(df: pd.DataFrame) -> pd.DataFrame:
     """Convert SOURCE_KEY to deterministic integer ids without altering Milestone 1 code."""
+    if "SOURCE_KEY" not in df.columns:
+        # Add dummy SOURCE_KEY column if missing
+        df = df.copy()
+        df["SOURCE_KEY"] = "A"  # Default value
+    
     if pd.api.types.is_numeric_dtype(df["SOURCE_KEY"]):
         return df
-
+    
     prepared = df.copy()
     prepared["SOURCE_KEY"] = pd.factorize(prepared["SOURCE_KEY"])[0]
     return prepared
