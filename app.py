@@ -322,20 +322,45 @@ with tab1:
         if st.button("Run Batch Forecast", key="batch_btn"):
             missing = [f for f in FEATURES if f not in df_up.columns]
             if missing:
-                st.error(f"Missing required columns: {missing}")
+                st.error(f"❌ Missing required columns: {missing}")
+                st.info("📋 Required columns for batch prediction:")
+                for feature in FEATURES:
+                    status = "✅" if feature in df_up.columns else "❌"
+                    st.write(f"{status} {feature}")
+                st.info("💡 **Tip**: Your CSV must contain these exact column names:")
+                st.code(", ".join(FEATURES))
+                st.info("📄 **Sample CSV format:**")
+                sample_data = {
+                    "SOURCE_KEY": ["A", "B"],
+                    "AMBIENT_TEMPERATURE": [25.5, 30.2],
+                    "MODULE_TEMPERATURE": [35.1, 40.5],
+                    "IRRADIATION": [800, 950],
+                    "hour": [12, 14],
+                    "month": [6, 7]
+                }
+                st.dataframe(pd.DataFrame(sample_data))
             else:
-                df_pred = df_up.copy()
-                df_pred = encode_features(df_pred)
+                try:
+                    df_pred = df_up.copy()
+                    df_pred = encode_features(df_pred)
 
-                preds_batch = np.clip(load_model().predict(df_pred[FEATURES]), 0, None)
-                df_up["Prediction"] = preds_batch
+                    # Additional validation
+                    if df_pred[FEATURES].isnull().any().any():
+                        st.error("❌ Uploaded data contains missing values. Please clean your data.")
+                        st.stop()
 
-                st.success("Forecast completed successfully.")
-                st.dataframe(df_up, use_container_width=True)
+                    preds_batch = np.clip(load_model().predict(df_pred[FEATURES]), 0, None)
+                    df_up["Prediction"] = preds_batch
 
-                csv = df_up.to_csv(index=False).encode("utf-8")
-                st.download_button("Download Predictions", csv,
-                                   "solar_predictions.csv", "text/csv")
+                    st.success("✅ Forecast completed successfully!")
+                    st.dataframe(df_up, use_container_width=True)
+
+                    csv = df_up.to_csv(index=False).encode("utf-8")
+                    st.download_button("📥 Download Predictions", csv,
+                                       "solar_predictions.csv", "text/csv")
+                except Exception as e:
+                    st.error(f"❌ Error during prediction: {str(e)}")
+                    st.info("Please check your data format and try again.")
 
     # ── Dataset Coverage ──
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
