@@ -155,9 +155,13 @@ def build_forecast_context(scenario: Dict[str, Any]) -> Tuple[List[Dict[str, Any
             "month": [month]
         }
         
-        # Add SOURCE_KEY if it exists in FEATURES
+        # Add one-hot encoded SOURCE_KEY if it exists in FEATURES
         if "SOURCE_KEY" in FEATURES:
-            feature_dict["SOURCE_KEY"] = [source_key]
+            # Create one-hot encoded SOURCE_KEY
+            source_key_encoded = pd.get_dummies(pd.DataFrame({"SOURCE_KEY": [source_key]}), prefix="SOURCE_KEY")
+            for col in source_key_encoded.columns:
+                if col != "SOURCE_KEY":
+                    feature_dict[col] = source_key_encoded[col].iloc[0]
         
         features = pd.DataFrame(feature_dict)
 
