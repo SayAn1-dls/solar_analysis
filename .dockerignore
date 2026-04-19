@@ -1,0 +1,10 @@
+venv/
+.venv/
+__pycache__/
+.git/
+.gitignore
+.gitattributes
+models/training_log.json
+training_log.json
+.DS_Store
+*.pyc
