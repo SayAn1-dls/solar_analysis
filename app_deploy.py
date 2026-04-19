@@ -70,7 +70,7 @@ sample_power = [
     0, 0, 0, 0, 0, 0,  # 0-5: Night
     50, 200, 450, 800, 1200, 1500,  # 6-11: Morning
     1800, 2000, 2100, 1900, 1600,  # 12-17: Peak hours
-    1200, 600, 200, 50, 0, 0, 0, 0  # 18-23: Evening/Night
+    1200, 600, 200, 50, 0, 0  # 18-23: Evening/Night
 ]
 
 fig, ax = plt.subplots(figsize=(12, 6))
