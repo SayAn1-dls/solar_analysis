@@ -23,22 +23,17 @@ graph TD
 
 ## Files Added
 
-- `app/agentic_rag_app.py`
+- `app/streamlit_app.py` (updated to include AI Grid Optimizer tab)
 - `src/agentic_rag/`
 - `knowledge_base/grid_guidelines/`
 
 ## Run Instructions
 
 ```bash
-python3 -m pip install -r requirements_agentic_rag.txt
-streamlit run app/agentic_rag_app.py
-```
-
-Optional open-source local LLM rewriting:
-
-```bash
-export OLLAMA_MODEL=llama3.1:8b
-streamlit run app/agentic_rag_app.py
+pip install -r requirements.txt
+pip install -r requirements_agentic_rag.txt
+export GROQ_API_KEY="your_api_key_here"
+streamlit run app/streamlit_app.py
 ```
 
 If `langgraph` is unavailable, the code still executes the same node order through a deterministic fallback so the demo remains runnable.

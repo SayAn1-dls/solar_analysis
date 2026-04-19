@@ -15,6 +15,10 @@ Run:
 import sys
 import os
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
+groq_api_key = os.getenv("GROQ_API_KEY")
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -30,13 +34,13 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from src.preprocessing.preprocessing import encode_features, FEATURES, TARGET
 from src.evaluation.metrics import compute_mape
 from src.utils.helpers import style_plot, concept_note, C_RF, C_ACTUAL, C_ACCENT, C_GOLD
+from src.agentic_rag.workflow import run_agentic_grid_optimizer
 
 # ══════════════════════════════════════
 # PAGE CONFIG & STYLING
 # ══════════════════════════════════════
 st.set_page_config(
     page_title="Solar Power Forecasting — ML Project",
-    page_icon="☀️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -205,12 +209,13 @@ y_test_ts = y_all.iloc[split_idx:]
 # ══════════════════════════════════════
 # TABS
 # ══════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Predict",
     "Data Analysis",
     "Model Evaluation",
     "Forecast",
     "Logs & Export",
+    "AI Grid Optimizer",
 ])
 
 
@@ -725,3 +730,186 @@ with tab5:
     })
 
     st.dataframe(summary.set_index("Statistic"), width="stretch")
+
+
+# ══════════════════════════════════════════════════════
+# TAB 6 — AI GRID OPTIMIZER (RAG)
+# ══════════════════════════════════════════════════════
+with tab6:
+    st.header("Agentic AI Grid Optimization Assistant")
+    concept_note(
+        "<strong>Concept — Agentic RAG:</strong> "
+        "This assistant runs as a separate layer on top of your ML forecaster. "
+        "It builds a solar forecast, analyzes variability risk, retrieves grid guidelines, "
+        "and produces a structured optimization report."
+    )
+
+    with st.expander("Scenario Inputs & Operator Goal", expanded=True):
+        with st.form("rag_scenario_form"):
+            col_rg1, col_rg2, col_rg3 = st.columns(3)
+            with col_rg1:
+                st.markdown("##### Environment & Solar")
+                rag_source_key = st.number_input("Inverter ID", min_value=0, value=0, key="rag_src")
+                rag_ambient = st.number_input("Ambient Temp (°C)", value=28.0, key="rag_amb")
+                rag_module = st.number_input("Module Temp (°C)", value=40.0, key="rag_mod")
+                rag_irr = st.number_input("Base Irradiation", min_value=0.0, max_value=1.5, value=0.75, key="rag_irr")
+                rag_month = st.slider("Month", 1, 12, 6, key="rag_month")
+            with col_rg2:
+                st.markdown("##### Grid & Load Profile")
+                rag_start = st.slider("Starting Hour", 0, 23, 8, key="rag_start")
+                rag_horizon = st.slider("Forecast Horizon", 6, 24, 12, key="rag_horiz")
+                rag_demand = st.number_input("Average Grid Demand (kW)", min_value=1.0, value=22.0, key="rag_dem")
+                rag_reserve = st.slider("Reserve Margin (%)", 5, 40, 15, key="rag_res")
+                rag_crit = st.slider("Critical Load Share", 0.2, 1.0, 0.6, 0.05, key="rag_crit")
+            with col_rg3:
+                st.markdown("##### Storage Strategy")
+                rag_bat_cap = st.number_input("Battery Capacity (kWh)", min_value=0.0, value=50.0, key="rag_bat_cap")
+                rag_bat_soc = st.slider("Battery SOC (%)", 0, 100, 55, key="rag_soc")
+                rag_bat_pow = st.number_input("Battery Power Limit (kW)", min_value=0.0, value=15.0, key="rag_bat_pow")
+            
+            question = st.text_area(
+                "Operator Goal",
+                value=(
+                    "Generate a grid optimization plan that minimizes deficit risk, uses storage well, "
+                    "and shifts flexible loads into strong solar periods."
+                ),
+                height=70,
+            )
+
+            # The button is now inside the form
+            submitted = st.form_submit_button("Run Agentic RAG Optimization", type="primary")
+
+    scenario = {
+        "source_key": rag_source_key,
+        "ambient_temperature": rag_ambient,
+        "module_temperature": rag_module,
+        "base_irradiation": rag_irr,
+        "start_hour": rag_start,
+        "month": rag_month,
+        "forecast_horizon_hours": rag_horizon,
+        "grid_demand_kw": rag_demand,
+        "reserve_margin_pct": rag_reserve,
+        "critical_load_share": rag_crit,
+        "battery_capacity_kwh": rag_bat_cap,
+        "battery_soc_pct": rag_bat_soc,
+        "battery_power_kw": rag_bat_pow,
+    }
+
+    if submitted:
+        with st.spinner("Analyzing forecast, risks, and retrieved grid guidance..."):
+            st.session_state.rag_state = run_agentic_grid_optimizer(question=question, scenario=scenario)
+
+    if "rag_state" in st.session_state:
+        state = st.session_state.rag_state
+        report = state["optimization_report"]
+        forecast_df = pd.DataFrame(state["forecast_rows"])
+        references_df = pd.DataFrame(state["supporting_references"])
+
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        top1, top2, top3, top4 = st.columns(4)
+        top1.metric("Risk Level", state["risk_analysis"]["risk_level"])
+        top2.metric("Risk Score", f"{state['risk_analysis']['risk_score']}/100")
+        top3.metric("Peak Solar", f"{report['forecast_summary']['peak_generation_kw']:.2f} kW")
+        top4.metric("Coverage Ratio", f"{report['forecast_summary']['coverage_ratio']:.0%}")
+
+        rtab1, rtab2, rtab3, rtab4 = st.tabs(
+            ["Optimization Report", "Forecast & Risk", "Retrieved Guidelines", "Agent Trace"]
+        )
+
+        with rtab1:
+            st.markdown(state["report_markdown"])
+            
+            st.subheader("AI Reasoning")
+            if "llm_reasoning" in state:
+                st.info(state["llm_reasoning"])
+                
+            st.subheader("Ask AI")
+            if "chat_history" not in st.session_state:
+                st.session_state.chat_history = []
+            
+            # Display chat history natively
+            for q, a in st.session_state.chat_history:
+                with st.chat_message("user"):
+                    st.write(q)
+                with st.chat_message("assistant"):
+                    st.write(a)
+
+            # Accept user input
+            if user_q := st.chat_input("Ask about this scenario..."):
+                with st.chat_message("user"):
+                    st.write(user_q)
+                
+                with st.chat_message("assistant"):
+                    import os
+                    from groq import Groq
+                    try:
+                        with st.spinner("Thinking..."):
+                            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+                            prompt = f"Context:\n{state['optimization_report']}\n\nUser question: {user_q}\nRespond clearly and concisely with formatting."
+                            response = client.chat.completions.create(
+                                model="llama-3.1-8b-instant",
+                                messages=[{"role": "user", "content": prompt}],
+                            )
+                            answer = response.choices[0].message.content
+                            st.write(answer)
+                            st.session_state.chat_history.append((user_q, answer))
+                    except Exception as e:
+                        st.error(f"Chatbot failed! Make sure GROQ_API_KEY is set. Error: {str(e)}")
+
+            st.download_button(
+                "Download Report (Markdown)",
+                data=state["report_markdown"].encode("utf-8"),
+                file_name="agentic_grid_optimization_report.md",
+                mime="text/markdown",
+            )
+            st.download_button(
+                "Download Report (JSON)",
+                data=json.dumps(report, indent=2).encode("utf-8"),
+                file_name="agentic_grid_optimization_report.json",
+                mime="application/json",
+            )
+
+        with rtab2:
+            st.subheader("Hourly Forecast Table")
+            st.dataframe(
+                forecast_df[
+                    [
+                        "hour",
+                        "predicted_kw",
+                        "demand_kw",
+                        "net_margin_kw",
+                        "ramp_delta_kw",
+                        "historical_mean_w",
+                        "historical_variability_ratio",
+                    ]
+                ],
+                width="stretch",
+            )
+            st.line_chart(
+                forecast_df.set_index("hour")[["predicted_kw", "demand_kw"]],
+                color=["#10B981", "#F97316"],
+            )
+
+            st.subheader("Risk Windows")
+            if report["risk_periods"]:
+                st.json(report["risk_periods"])
+            else:
+                st.success("No significant risk windows detected in this scenario.")
+
+        with rtab3:
+            st.caption(f"Retriever backend: {state.get('retriever_backend', 'tfidf-cosine')}")
+            st.dataframe(references_df, width="stretch")
+            for item in state["retrieved_guidelines"]:
+                with st.expander(f"{item['title']} ({item['id']})"):
+                    st.write(item["content"])
+                    st.caption(item["source"])
+
+        with rtab4:
+            st.dataframe(pd.DataFrame(state["trace"]), width="stretch")
+            st.json(
+                {
+                    "scenario": state["scenario"],
+                    "forecast_summary": state["forecast_summary"],
+                    "risk_analysis": state["risk_analysis"],
+                }
+            )

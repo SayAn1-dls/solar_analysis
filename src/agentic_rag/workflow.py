@@ -168,6 +168,56 @@ def _plan_actions(state: GridOptimizationState) -> GridOptimizationState:
     }
 
 
+def _llm_reason(state: GridOptimizationState) -> GridOptimizationState:
+    from groq import Groq
+    import os
+
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+        summary = state["forecast_summary"]
+        risk = state["risk_analysis"]
+        actions = state["action_plan"]
+
+        prompt = f"""
+You are a solar grid optimization expert.
+
+Forecast Summary:
+{summary}
+
+Risk Analysis:
+{risk}
+
+Planned Actions:
+{actions}
+
+Explain:
+1. Why this risk level exists
+2. Why these actions are recommended
+3. What could go wrong if ignored
+
+Be practical, not theoretical.
+"""
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+        llm_reasoning = response.choices[0].message.content
+    except Exception as e:
+        llm_reasoning = f"LLM reasoning failed or GROQ_API_KEY is missing. Error: {str(e)}"
+
+    return {
+        "llm_reasoning": llm_reasoning,
+        "trace": _trace(
+            state,
+            "llm_reason",
+            "Generated AI reasoning behind actions.",
+        ),
+    }
+
+
+
 def _generate_report(state: GridOptimizationState) -> GridOptimizationState:
     structured_report = build_structured_report(state)
     report_markdown = render_report_markdown(state, structured_report)
@@ -184,7 +234,7 @@ def _generate_report(state: GridOptimizationState) -> GridOptimizationState:
 
 def _run_fallback(initial_state: GridOptimizationState) -> GridOptimizationState:
     state: GridOptimizationState = dict(initial_state)
-    for node in (_prepare_context, _analyze_risk, _retrieve_guidelines, _plan_actions, _generate_report):
+    for node in (_prepare_context, _analyze_risk, _retrieve_guidelines, _plan_actions, _llm_reason, _generate_report):
         state.update(node(state))
     return state
 
@@ -205,12 +255,14 @@ def run_agentic_grid_optimizer(question: str, scenario: Dict[str, Any]) -> GridO
         graph.add_node("analyze_risk", _analyze_risk)
         graph.add_node("retrieve_guidelines", _retrieve_guidelines)
         graph.add_node("plan_actions", _plan_actions)
+        graph.add_node("llm_reason", _llm_reason)
         graph.add_node("generate_report", _generate_report)
         graph.add_edge(START, "prepare_context")
         graph.add_edge("prepare_context", "analyze_risk")
         graph.add_edge("analyze_risk", "retrieve_guidelines")
         graph.add_edge("retrieve_guidelines", "plan_actions")
-        graph.add_edge("plan_actions", "generate_report")
+        graph.add_edge("plan_actions", "llm_reason")
+        graph.add_edge("llm_reason", "generate_report")
         graph.add_edge("generate_report", END)
         compiled = graph.compile()
         return compiled.invoke(initial_state)

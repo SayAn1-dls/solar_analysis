@@ -13,6 +13,7 @@ class GridOptimizationState(TypedDict, total=False):
     retrieved_guidelines: List[Dict[str, Any]]
     retriever_backend: str
     action_plan: List[Dict[str, Any]]
+    llm_reasoning: str
     optimization_report: Dict[str, Any]
     report_markdown: str
     supporting_references: List[Dict[str, Any]]
