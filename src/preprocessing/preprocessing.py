@@ -10,10 +10,10 @@ import pandas as pd
 from src.data.load_data import load_data
 
 # Features used by the model
+# Note: After one-hot encoding, SOURCE_KEY becomes multiple columns
 FEATURES = [
-    "SOURCE_KEY",
     "AMBIENT_TEMPERATURE",
-    "MODULE_TEMPERATURE",
+    "MODULE_TEMPERATURE", 
     "IRRADIATION",
     "hour",
     "month",
@@ -25,20 +25,24 @@ TARGET = "DC_POWER"
 def encode_features(df):
     """Encode categorical columns to numeric labels.
 
-    Converts SOURCE_KEY (inverter ID) from string to integer category codes.
+    Converts SOURCE_KEY (inverter ID) from string to one-hot encoded columns.
     This is required because decision tree models expect numeric input.
 
     Args:
         df: DataFrame with a SOURCE_KEY column.
 
     Returns:
-        DataFrame with SOURCE_KEY encoded as integers.
+        DataFrame with SOURCE_KEY one-hot encoded.
     """
     print("Encoding SOURCE_KEY...")
     if df["SOURCE_KEY"].dtype == "object" or str(df["SOURCE_KEY"].dtype) == "category":
-        df["SOURCE_KEY"] = df["SOURCE_KEY"].astype("category").cat.codes
-    print("Encoding done")
-    return df
+        # One-hot encode SOURCE_KEY to match training format
+        df_encoded = pd.get_dummies(df, columns=["SOURCE_KEY"], prefix="SOURCE_KEY")
+        print("Encoding done")
+        return df_encoded
+    else:
+        print("Encoding done")
+        return df
 
 
 def split_data(df, train_ratio=0.8):

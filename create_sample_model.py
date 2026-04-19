@@ -37,9 +37,8 @@ def calculate_solar_power(hour, irradiation, module_temp):
 
 dc_power = np.array([calculate_solar_power(h, ir, mt) for h, ir, mt in zip(hours, irradiation, module_temp)])
 
-# Create feature matrix
+# Create feature matrix (without SOURCE_KEY for training)
 X = pd.DataFrame({
-    'SOURCE_KEY': np.random.choice(['A', 'B', 'C', 'D'], n_samples),
     'AMBIENT_TEMPERATURE': ambient_temp,
     'MODULE_TEMPERATURE': module_temp,
     'IRRADIATION': irradiation,
@@ -47,8 +46,8 @@ X = pd.DataFrame({
     'month': months
 })
 
-# Encode categorical features
-X_encoded = pd.get_dummies(X, columns=['SOURCE_KEY'], prefix='SOURCE_KEY')
+# Encode categorical features (one-hot encode SOURCE_KEY)
+X_encoded = pd.get_dummies(X, columns=[], prefix='SOURCE_KEY')
 
 # Train model
 model = RandomForestRegressor(n_estimators=100, random_state=42)
