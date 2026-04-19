@@ -60,6 +60,23 @@ joblib.dump(model, 'models/solar_model.pkl')
 # Create sample dataset for analysis
 sample_data = X.copy()
 sample_data['DC_POWER'] = dc_power
+
+# Add DATE_TIME column with realistic timestamps
+import datetime
+import random
+
+start_date = datetime.datetime(2023, 1, 1)
+date_times = []
+for i in range(len(sample_data)):
+    # Generate random datetime within 2023
+    days_offset = random.randint(0, 364)
+    hours_offset = random.randint(0, 23)
+    minutes_offset = random.randint(0, 59)
+    
+    current_date = start_date + datetime.timedelta(days=days_offset, hours=hours_offset, minutes=minutes_offset)
+    date_times.append(current_date.strftime('%Y-%m-%d %H:%M:%S'))
+
+sample_data['DATE_TIME'] = date_times
 sample_data.to_csv('data/processed/solar_final.csv', index=False)
 
 print("✅ Sample model and dataset created successfully!")
