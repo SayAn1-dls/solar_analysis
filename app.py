@@ -885,31 +885,19 @@ with tab6:
             )
 
         with rtab2:
-            st.subheader("Hourly Forecast Table")
-            st.dataframe(
-                forecast_df[
-                    [
-                        "hour",
-                        "predicted_kw",
-                        "demand_kw",
-                        "net_margin_kw",
-                        "ramp_delta_kw",
-                        "historical_mean_w",
-                        "historical_variability_ratio",
-                    ]
-                ],
-                use_container_width=True,
-            )
-            st.line_chart(
-                forecast_df.set_index("hour")[["predicted_kw", "demand_kw"]],
-                color=["#10B981", "#F97316"],
-            )
-
-            st.subheader("Risk Windows")
-            if report["risk_periods"]:
-                st.json(report["risk_periods"])
-            else:
-                st.success("No significant risk windows detected in this scenario.")
+                st.subheader("Hourly Forecast Table")
+                
+                # Only show columns that actually exist
+                desired_cols = [
+                    "hour", "predicted_kw", "demand_kw", "net_margin_kw",
+                    "ramp_delta_kw", "historical_mean_w", "historical_variability_ratio",
+                ]
+                available_cols = [c for c in desired_cols if c in forecast_df.columns]
+                
+                st.dataframe(
+                    forecast_df[available_cols],
+                    use_container_width=True,
+                )
 
         with rtab3:
             st.caption(f"Retriever backend: {state.get('retriever_backend', 'tfidf-cosine')}")
